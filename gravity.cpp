@@ -10,29 +10,33 @@
 
 int width = 1000;
 int height = 700;
-int num_particles = 500;
-float gravity = 0.5;
-float t = 1;
+int num_particles = 1000;
+float gravity = 9.8f;
+int T = 10;
+float t = T*0.016f;
+int frame = 0;
+
 
 struct Particle{
 
     float x_velocity;
     float y_velocity;
-    int x;
-    int y;
-    int vy0;
+    float x;
+    float y;
+    float max_vy;
     int radius;
     sf::Color color;
+    bool touch = false;
 
-    Particle(int x_, int y_, float x_velocity_, float y_velocity_, int radius_, int c1_, int c2_, int c3_, int c4_){ //we need to create an constructor to pass the color arguments
+    Particle(float x_, float y_, float x_velocity_, float y_velocity_, int radius_, int c1_, int c2_, int c3_, int c4_){ //we need to create an constructor to pass the color arguments
         sf::Color temp(c1_, c2_, c3_, c4_);
-        x = x_;
-        y = y_;
-        x_velocity = x_velocity_ * t;
-        y_velocity = y_velocity_ * t;
-        vy0 = y_velocity_ * t;
+        y = y_ + 100;
+        x_velocity = x_velocity_ ;
+        y_velocity = y_velocity_ ;
         radius = radius_;
+        x = x_;
         color = temp;
+
     }    
 };
 
@@ -48,19 +52,21 @@ int main(){
     std::uniform_int_distribution<> orienation(0,1);
     std::uniform_int_distribution<> r(5,20);
     std::uniform_int_distribution<> c(0,255);
+    std::uniform_int_distribution<> py(0,height - 300);
     //creating an vector that will hold all the particles:
 
     std::vector<Particle> particles;
 
     for(int i = 0; i < num_particles; i++){
         if(orienation(gen) % 2 ==0){ //just creating an50% probability
-            Particle particle(width/2,0,distr(gen), distr(gen), r(gen), c(gen), c(gen), c(gen), 255); //we then create an Particle object with all this parameters
+            Particle particle(width/2,py(gen),distr(gen), distr(gen), r(gen), c(gen), c(gen), c(gen), 255); //we then create an Particle object with all this parameters
             particles.push_back(particle);
+            //std::cout<<particle.y<<std::endl;
             }else{
-            Particle particle(width/2, 0, -distr(gen), -distr(gen), r(gen), c(gen), c(gen), c(gen), 255);
-            particles.push_back(particle);}
-
-
+            Particle particle(width/2, py(gen), -distr(gen), -distr(gen), r(gen), c(gen), c(gen), c(gen), 255);
+            particles.push_back(particle);
+            //std::cout<<particle.y<<std::endl;
+            }
     }
 
     //creating an vector that will hold all the circle shapes:
@@ -86,14 +92,31 @@ int main(){
         window.clear(sf::Color::Black); //We clear the screen 
 
         for(int i = 0; i < circles.size(); i++){
-            circles[i].setPosition(particles[i].x, particles[i].y); //we set the position of the circle based on the x and y values of the particle            
-            if(particles[i].x < 0 || particles[i].x > width - 2*particles[i].radius){particles[i].x_velocity = -0.9*particles[i].x_velocity;} //we then do the border verifier, if it touches, then the velocity is multiplied by -1
-            if(particles[i].y < 0 || particles[i].y > height - 2*particles[i].radius){particles[i].y_velocity = -0.9*particles[i].y_velocity;}
-            window.draw(circles[i]); //here we are drawing the circle
-            particles[i].x += particles[i].x_velocity*t; //we are updating the x velocity here
-            particles[i].y += particles[i].y_velocity*t;
-            particles[i].y_velocity += gravity;
-//            std::cout<<particles[i].y_velocity<<std::endl;
+            frame ++;
+            auto& p = particles[i];
+            auto& c = circles[i];
+            c.setPosition(p.x,p.y);
+            window.draw(c);
+            p.x += p.x_velocity * t;
+            p.y += p.y_velocity * t;
+            if(p.y_velocity + gravity*t <= p.max_vy && p.touch){p.y_velocity += gravity*t;}else if(p.touch){p.y_velocity = p.max_vy;}
+            if(p.x < 0 ){
+                p.x = 0;
+                p.x_velocity = -p.x_velocity; 
+                }else if(p.x > width - 2 * p.radius){
+                    p.x = width - 2 * p.radius;
+                    p.x_velocity = -p.x_velocity;
+                }
+            if(p.y < 0 ){
+                p.touch = true;
+                p.y = 1;
+                p.y_velocity = -p.y_velocity; 
+                }else if(p.y > height - 2 * p.radius ){
+                    p.touch = true;
+                    p.y = height - 2 * p.radius - 1;
+                    p.y_velocity = -p.y_velocity ;
+                }            
+            if(!p.touch){p.max_vy = p.y_velocity; p.y_velocity+=gravity*t;}
         }
 
         window.display(); //we pass to the next frame

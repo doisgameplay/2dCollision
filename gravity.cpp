@@ -10,7 +10,7 @@
 
 int width = 1000;
 int height = 700;
-int num_particles = 1000;
+int num_particles = 100;
 float gravity = 9.8f;
 int T = 10;
 float t = T*0.016f;

@@ -4,80 +4,77 @@
 #include <vector>
 #include <cmath>
 
-int width = 650;
-int height =500;
-int num_particles = 2;
-float gravity = 0;
-float t = 1;
-float restituition = 1;
-int time_elapsed = 0;
+int width = 1000;
+int height = 500;
+int num_particles = 100;
+float gravity = 0;//9.8f;
+int T = 1;
+float t = T*0.016f;
+int frame = 0;
 
-struct Vector{
-    float x;
-    float y;
-    float modulo;
-    Vector(int x_, int y_){
-        x = x_;
-        y = y_;
-        modulo = std::sqrt(x*x + y*y);
-    }
-};
 
 struct Particle{
+
     float x_velocity;
     float y_velocity;
-    Vector velocity;
+    float N_velocity;
+    float T_velocity;
     float x;
     float y;
-    int vy0;
+    float max_vy;
     int radius;
-    sf::Color color;
-    int collision_time = 0;
     float mass = 1;
-    Particle(int x_, int y_, float x_velocity_, float y_velocity_, int radius_, int c1_, int c2_, int c3_, int c4_)
-        :velocity(x_velocity_, y_velocity_) 
-    { //we need to create an constructor to pass the color arguments
+    sf::Color color;
+    bool touch = false;
+    int id;
+    Particle(float x_, float y_, float x_velocity_, float y_velocity_, int radius_, int c1_, int c2_, int c3_, int c4_, int id_){ //we need to create an constructor to pass the color arguments
         sf::Color temp(c1_, c2_, c3_, c4_);
+        y = y_ + 100;
+        x_velocity = x_velocity_ ;
+        y_velocity = y_velocity_ ;
+        radius = radius_;
         x = x_;
-        y = y_;
-        x_velocity = x_velocity_ * t;
-        y_velocity = y_velocity_ * t;
-        vy0 = y_velocity_ * t;
-        //radius = radius_;
-        radius = 50;
         color = temp;
+        id = id_;
+        radius = 10;
     }    
 };
 
-Vector sum(Vector a, Vector b);
-Vector multiply(float c, Vector a);
-float mod(Vector a);
+
+void check_borders(Particle& p);
+void check_collision(std::vector<Particle> &particles);
+bool is_touching(Particle p1, Particle p2);
+float distance(Particle p1, Particle p2);
+void separate(Particle &p1, Particle &p2);
+void collide(Particle &p1, Particle &p2);
+
 
 int main(){
-
 
     sf::RenderWindow window(sf::VideoMode(width, height), "p2"); //we first need to start the window
     window.setFramerateLimit(60); //we then set an framerate
 
     std::random_device rd; //we create an random number device generator
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(2,2);
+    std::uniform_int_distribution<> distr(2,20);
     std::uniform_int_distribution<> orienation(0,1);
     std::uniform_int_distribution<> r(5,20);
     std::uniform_int_distribution<> c(0,255);
+    std::uniform_int_distribution<> py(0,height - 300);
     //creating an vector that will hold all the particles:
 
     std::vector<Particle> particles;
 
     for(int i = 0; i < num_particles; i++){
         if(orienation(gen) % 2 ==0){ //just creating an50% probability
-            Particle particle(width/2 + c(gen),0+c(gen),distr(gen), distr(gen), r(gen), c(gen), c(gen), c(gen), 255); //we then create an Particle object with all this parameters
+            Particle particle(width/2,py(gen),distr(gen), distr(gen), r(gen), c(gen), c(gen), c(gen), 255,i); //we then create an Particle object with all this parameters
             particles.push_back(particle);
+            //std::cout<<particle.y<<std::endl;
             }else{
-            Particle particle(width/2, 0, -distr(gen), -distr(gen), r(gen), c(gen), c(gen), c(gen), 255);
-            particles.push_back(particle);}
-
-
+            Particle particle(width/2, py(gen), -distr(gen), -distr(gen), r(gen), c(gen), c(gen), c(gen), 255,i);
+            particles.push_back(particle);
+            //std::cout<<particle.y<<std::endl;
+            }
     }
 
     //creating an vector that will hold all the circle shapes:
@@ -103,81 +100,105 @@ int main(){
         window.clear(sf::Color::Black); //We clear the screen 
 
         for(int i = 0; i < circles.size(); i++){
-            circles[i].setPosition(particles[i].x, particles[i].y); //we set the position of the circle based on the x and y values of the particle            
-            if(particles[i].x < 0 || particles[i].x > width - 2*particles[i].radius){particles[i].x_velocity = -restituition*particles[i].x_velocity;} //we then do the border verifier, if it touches, then the velocity is multiplied by -1
-            if(particles[i].y < 0 || particles[i].y > height - 2*particles[i].radius){particles[i].y_velocity = -restituition*particles[i].y_velocity;}
-            window.draw(circles[i]); //here we are drawing the circle
-            particles[i].x += particles[i].x_velocity*t; //we are updating the x velocity here
-            particles[i].y += particles[i].y_velocity*t; //we are updating the y velocity here
-            particles[i].y_velocity += gravity; //we are updating the gravity
-            //std::cout<<"x: "<<particles[i].x_velocity<<std::endl;
-            //std::cout<<"y: "<<particles[i].y_velocity;
-                        
-            //cheking if two balls are coliding:
-            if(time_elapsed >= 60){
-                particles[i].collision_time ++;
-                for(int k = 0; k < circles.size(); k++){
-                    if(i == k){continue;}
-                    if(sqrt( ( particles[i].x - particles[k].x + particles[i].radius - particles[k].radius )*( particles[i].x - particles[k].x + particles[i].radius - particles[k].radius) + ( particles[i].y - particles[k].y + particles[i].radius - particles[k].radius)*( particles[i].y - particles[k].y + particles[i].radius - particles[k].radius) ) <= particles[i].radius + particles[k].radius && particles[i].collision_time >= 10 && particles[k].collision_time >= 30){
-                        int x1 = particles[i].x, y1 = particles[i].y, x2 = particles[k].x, y2 = particles[k].y;
-                        float dx = x2 - x1, dy = y2 - y1;
-                        float m1 = particles[i].mass, m2 = particles[k].mass;
-                        float cos = dx/sqrt(dx*dx + dy*dy), sin = dy/sqrt(dy*dy + dx*dx);
-                        float v1x = particles[i].x_velocity, v2x = particles[k].x_velocity, v1y = particles[i].y_velocity, v2y = particles[k].y_velocity;
-                        float v1n = v1x * cos + v1y * sin, v2n = v2x * cos + v2y * sin;
-                        float V1n = (v1n*(m1 - m2) + 2*m2*v2n)/(m1 + m2), V2n = (v2n*(m2 - m1) + 2*m1*v1n)/(m1 + m2);
-                        float V1t = v1x * sin + v1y * cos, V2t = v2x * sin + v2y * cos;
-                        particles[i].x_velocity = V1n * cos + V1t * sin;
-                        particles[i].y_velocity = V1n * sin + V1t * cos;
-
-
-                        //if(v1x * v2x < 0){particles[i].x_velocity = -V2n * cos - V2t * sin;}else{particles[i].x_velocity = V2n * cos + V2t * sin;}
-                        //if(v1y * v2y < 0){particles[i].y_velocity = V2n * sin + V2t * cos;}else{particles[i].y_velocity = -V2n * sin - V2t * cos;}
-
-                        //if(v1x * v2x < 0){particles[k].x_velocity = V2n * cos + V2t * sin;}else{particles[k].x_velocity = -V2n * cos - V2t * sin;}
-                        if(v1y * v2y < 0){particles[k].y_velocity = V2n * sin + V2t * cos;}else{
-                            std::cout<<"y:"<<std::endl;
-                            if(v1x * v2x > 0){
-                                particles[k].y_velocity = -V2n * sin - V2t * cos;
-                                }else{particles[k].y_velocity = V1n * sin + V1t * cos;
-                                }    
-                            }
-                        //particles[k].x_velocity = V2n * cos + V2t * sin;
-                        //particles[k].y_velocity = V2n * sin + V2t * cos;
-                        std::cout<<"V1t: "<<V1t<<std::endl;
-                        //std::cout<<"x: "<<particles[i].x_velocity<<std::endl;
-                        //std::cout<<"y: "<<particles[i].y_velocity;
-                        particles[i].collision_time = 0;
-                        particles[k].collision_time = 0; 
-                        //std::cout<<time_elapsed<<std::endl;
-                        //std::cout<<particles[i].collision_time<<std::endl;
-                    // int V1x = mod(V1n) * cos + mod(V1t) * sin; 
-                    }
-                }
-            }else{time_elapsed++;}
-
+            frame ++;
+            auto& p = particles[i];
+            auto& c = circles[i];
+            c.setPosition(p.x,p.y);
+            window.draw(c);
+            p.x += p.x_velocity * t;
+            p.y += p.y_velocity * t;
+            check_borders(p);
+            if(p.y_velocity + gravity*t <= p.max_vy && p.touch){p.y_velocity += gravity*t;}else if(p.touch){p.y_velocity = p.max_vy;}
+            if(!p.touch){p.max_vy = p.y_velocity; p.y_velocity+=gravity*t;}
+            
+            check_collision(particles);
+            
         }
-
         window.display(); //we pass to the next frame
-
     }
     return 0;
 }
 
 
-Vector sum(Vector a, Vector b){
-    Vector answer(a.x + b.x, a.y + b.y);
+void check_collision(std::vector<Particle> &particles){
+    for(int i = 0; i < num_particles; i++){
+        auto& p1 = particles[i];
+        for (int k = 0; k < num_particles; k++ ){
+            auto& p2 = particles[k];
+            if(p1.id == p2.id){continue;}
+            if(is_touching(p1,p2)){
+      //          std::cout<<i<<" - touching"<<std::endl;
+                separate(p1,p2);
+                collide(p1,p2);
+                }
+        } 
+    }
 
-    return answer;
 }
 
-Vector multiply(float c, Vector a){
-    Vector answer(a.x*c, a.y*c);
 
-    return answer;
+void collide(Particle &p1, Particle &p2){
+    float D = distance(p1,p2);
+    float cos = (p2.x - p1.x)/D;
+    float sen = (p2.y - p1.y)/D;
+    
+    p1.N_velocity = p1.x_velocity*cos + p1.y_velocity*sen;
+    p1.T_velocity = p1.y_velocity*cos - p1.x_velocity*sen;
+    p2.N_velocity = p2.x_velocity*cos + p2.y_velocity*sen;
+    p2.T_velocity = p2.y_velocity*cos - p2.x_velocity*sen;
+    
+    p1.N_velocity = ( p1.N_velocity*(p1.mass - p2.mass) + 2*p2.mass*p2.N_velocity )/(p1.mass + p2.mass);
+    p2.N_velocity = ( p2.N_velocity*(p2.mass - p1.mass) + 2*p1.mass*p1.N_velocity )/(p2.mass + p1.mass);
+
+    
+    p1.x_velocity = p1.N_velocity * cos - p1.T_velocity * sen;
+    p1.y_velocity = p1.N_velocity * sen + p1.T_velocity * cos;
+    p2.x_velocity = p2.N_velocity * cos - p2.T_velocity * sen;
+    p2.y_velocity = p2.N_velocity * sen + p2.T_velocity * cos;
+
 }
 
 
-float mod(Vector a){
-    return(sqrt(a.x*a.x + a.y*a.y));
+void separate(Particle &p1, Particle &p2){
+    float D = distance(p1,p2);
+    float d = p1.radius + p2.radius - D;
+    float cos = (p2.x - p1.x)/D;
+    float sen = (p2.y - p1.y)/D;
+
+    //std::cout<<D<<std::endl;
+    //std::cout<<cos<<std::endl;
+    p1.x -= (d/2)*cos;
+    p1.y -= (d/2)*sen;
+    p2.x += (d/2)*cos;
+    p2.y += (d/2)*sen;    
+}
+
+float distance(Particle p1, Particle p2){
+    return sqrt( (p1.x - p2.x + p1.radius - p2.radius)*(p1.x - p2.x+ p1.radius - p2.radius) + (p1.y - p2.y+ p1.radius - p2.radius)*(p1.y - p2.y+ p1.radius - p2.radius)) ;  
+}
+
+
+bool is_touching(Particle p1, Particle p2){
+    if( distance(p1,p2) <= p1.radius + p2.radius)return true;
+    return false;
+}
+
+
+void check_borders(Particle &p){
+    if(p.x < 0 ){
+            p.x = 0;
+            p.x_velocity = -p.x_velocity; 
+            }else if(p.x > width - 2 * p.radius){
+                p.x = width - 2 * p.radius;
+                p.x_velocity = -p.x_velocity;
+            }
+        if(p.y <= 0 ){
+            //p.touch = true;
+            p.y = 1;
+            p.y_velocity = -p.y_velocity; 
+            }else if(p.y > height - 2 * p.radius ){
+                p.touch = true;
+                p.y = height - 2 * p.radius - 1;
+                p.y_velocity = -p.y_velocity ;
+            }            
 }

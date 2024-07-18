@@ -6,9 +6,9 @@
 
 int width = 1000;
 int height = 500;
-int num_particles = 100;
-float gravity = 0;//9.8f;
-int T = 1;
+int num_particles = 10;
+float gravity =9.8f;
+int T = 10;
 float t = T*0.016f;
 int frame = 0;
 
@@ -56,7 +56,7 @@ int main(){
 
     std::random_device rd; //we create an random number device generator
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> distr(2,20);
+    std::uniform_int_distribution<> distr(6,10);
     std::uniform_int_distribution<> orienation(0,1);
     std::uniform_int_distribution<> r(5,20);
     std::uniform_int_distribution<> c(0,255);

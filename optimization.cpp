@@ -17,7 +17,7 @@ float min_velocity = 0, max_velocity = 0;
 float mouse_x_position = 0;
 float mouse_y_position = 0;
 int mouse_size = 10;
-float ball_size = 10;
+float ball_size = 5;
 bool test = false;
 
 
@@ -73,6 +73,7 @@ void separate_mouse_particle(Particle mouse, Particle &p);
 void collide_mouse_particle(Particle &mouse, Particle &p, float mouse_x_position, float mouse_y_position);
 void show_grid(std::vector<Particle> particles, sf::RenderWindow &window);
 void groupY(std::vector<Particle> ps,float w0 = 0, float h0 = 0, float wf = width, float hf = height);
+void groupX(std::vector<Particle> ps,float w0 = 0, float h0 = 0, float wf = width, float hf = height);
 bool CompareByY(Particle a, Particle b);
 bool CompareByX(Particle a, Particle b);
 void draw_line(sf::RenderWindow &window);
@@ -129,6 +130,9 @@ int main(){
                 if(event.key.code == sf::Keyboard::T){
                     test = true;
                 }
+                if(event.key.code == sf::Keyboard::U){
+                    test = false;
+                }
             }
         }
         window.clear(sf::Color::Black); //We clear the screen 
@@ -160,7 +164,6 @@ void update(std::vector<Particle> &particles, std::vector<sf::CircleShape> &circ
 
 void show_grid(std::vector<Particle> particles, sf::RenderWindow &window){
     groupY(particles);
-    
     draw_line(window);
     connected_points.clear();
     test = true;
@@ -184,14 +187,74 @@ void draw_line(sf::RenderWindow &window){
 
 void groupY(std::vector<Particle> ps,float w0, float h0, float wf, float hf){
     std::sort(ps.begin(), ps.end(), CompareByY);
-    float yMed = (ps[ps.size()/2 - 1].y + ps[ps.size()/2 ].y)/2;
+    float yMed = (ps[ps.size()/2 - 1].y + ps[ps.size()/2 ].y - ps[ps.size()/2 - 1].radius + ps[ps.size()/2 ].radius )/2;
     Coordenate c0(w0, yMed);
     Coordenate c1(wf, yMed);
+/*
+    for (auto p : ps){
+        std::cout<<"x : "<<p.x<<std::endl;
+    }
+    for (auto p : ps){
+        std::cout<<"y : "<<p.y<<std::endl;
+    }
+
+    std::cout<<"\n"<<"MEDIAN : "<<yMed<<std::endl;
+    std::cout<<"\n\n";
+*/
+    if(c0.x == c1.x && c0.y == c1.y ){return;}
     std::vector<Coordenate> pair {c0, c1};
     connected_points.push_back(pair);
+
+    std::vector<Particle> up;
+    std::vector<Particle> down;
+    for(auto p : ps){
+        if(p.y > yMed ){down.push_back(p);}else{up.push_back(p);}
+    }
+
+
+
+/*
+    for (auto p : up){
+        std::cout<<"y : "<<p.y<<std::endl;
+    }
+    std::cout<<"             ###         "<<std::endl;
+    for (auto p : down){
+        std::cout<<"y : "<<p.y<<std::endl;
+    }
+std::cout<<"---------------------------------"<<std::endl;
+*/
+
+    if(up.size() >= 2 ) groupX(up, w0, h0, wf, yMed);
+    if(down.size() >= 2) groupX(down, w0, yMed, wf, hf);
+
 }
 
+//std::Vector<Particle> create_grid(std::vector<Particle> ps){
 
+
+//}
+
+void groupX(std::vector<Particle> ps, float w0, float h0, float wf, float hf){
+    std::sort(ps.begin(), ps.end(), CompareByX);
+    float xMed = (ps[ps.size()/2 - 1].x + ps[ps.size()/2 ].x - ps[ps.size()/2 - 1].radius + ps[ps.size()/2 ].radius )/2;
+    Coordenate c0(xMed, h0);
+    Coordenate c1(xMed, hf);
+
+    if(c0.x == c1.x && c0.y == c1.y ){return;}
+    std::vector<Coordenate> pair {c0, c1};
+    connected_points.push_back(pair);
+
+    std::vector<Particle> left;
+    std::vector<Particle> right;
+
+    for(auto p : ps){
+        if(p.x < xMed){left.push_back(p);}else{right.push_back(p);}
+    }
+
+    if(left.size() >= 2) groupY(left, w0, h0, xMed, hf);
+    if(right.size() >= 2) groupY(right, xMed, h0, wf, hf);
+
+}
 
 
 bool CompareByX(Particle a, Particle b){

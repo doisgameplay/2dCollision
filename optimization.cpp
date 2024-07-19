@@ -81,7 +81,7 @@ void draw_line(sf::RenderWindow &window);
 
 
 std::vector<std::vector<Coordenate>> connected_points;
-
+//see;
 
 int main(){
 

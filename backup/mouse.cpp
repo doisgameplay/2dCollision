@@ -17,10 +17,9 @@ float min_velocity = 0, max_velocity = 0;
 float mouse_x_position = 0;
 float mouse_y_position = 0;
 int mouse_size = 10;
-float ball_size = 5;
+float ball_size = 10;
 bool test = false;
-bool pause = false;
-bool passed = false;
+
 
 struct Particle{
 
@@ -50,8 +49,6 @@ struct Particle{
 
 };
 
-
-
 struct Coordenate{
 
     float x;
@@ -69,43 +66,21 @@ bool is_touching(Particle p1, Particle p2);
 float distance(Particle p1, Particle p2);
 void separate(Particle &p1, Particle &p2);
 void collide(Particle &p1, Particle &p2);
-void add_ball(std::vector<Particle> &particles, std::vector<sf::CircleShape> &circles, sf::RenderWindow &window);
+void add_ball( std::vector<Particle> &particles, std::vector<sf::CircleShape> &circles, sf::RenderWindow &window);
 void update(std::vector<Particle> &particles, std::vector<sf::CircleShape> &circles, sf::RenderWindow &window);
 void check_mouse_collision(std::vector<Particle> &particles, std::vector<sf::CircleShape> &circles, sf::RenderWindow &window);
 void separate_mouse_particle(Particle mouse, Particle &p);
 void collide_mouse_particle(Particle &mouse, Particle &p, float mouse_x_position, float mouse_y_position);
 void show_grid(std::vector<Particle> particles, sf::RenderWindow &window);
 void groupY(std::vector<Particle> ps,float w0 = 0, float h0 = 0, float wf = width, float hf = height);
-void groupX(std::vector<Particle> ps,float w0 = 0, float h0 = 0, float wf = width, float hf = height);
 bool CompareByY(Particle a, Particle b);
 bool CompareByX(Particle a, Particle b);
 void draw_line(sf::RenderWindow &window);
 
-bool exist(const std::vector<Particle>& parS, float x_position, float y_position) {
-    int id = -1; // Initialize to -1 to indicate no match found yet
-    for (const auto& p : parS) {
-        if (p.x == x_position) {
-            id = p.id;
-            break;
-        }
-    }
-    if (id == -1) {
-        return false; // No particle with the given x_position found
-    }
-    for (const auto& p : parS) {
-        if (p.y == y_position && p.id == id) {
-            return true; // Particle with both x_position and y_position found
-        }
-    }
-    return false; // No particle with both conditions met
-}
 
 
-
-
-std::vector<std::vector<int>> idSets;
 std::vector<std::vector<Coordenate>> connected_points;
-std::vector<std::vector<Particle>> particles_to_check;
+
 
 int main(){
 
@@ -150,27 +125,17 @@ int main(){
                 }else if(event.key.code == sf::Keyboard::H){
                     gravity = 0;
                 }
+
                 if(event.key.code == sf::Keyboard::T){
-                    test = !test;
-                }
-                if(event.key.code == sf::Keyboard::U){
-                    test = false;
-                }
-                if(event.key.code == sf::Keyboard::P){
-                    if(pause){pause = false;}else{pause = true;}
-                }
-                if(event.key.code == sf::Keyboard::K){
-                    passed = false;
+                    test = true;
                 }
             }
         }
-        if(!pause){
         window.clear(sf::Color::Black); //We clear the screen 
 
         update(particles, circles, window); //updating the information 
 
         window.display(); //we pass to the next frame
-        }
     }
     return 0;
 }
@@ -194,20 +159,8 @@ void update(std::vector<Particle> &particles, std::vector<sf::CircleShape> &circ
 }
 
 void show_grid(std::vector<Particle> particles, sf::RenderWindow &window){
-    idSets.clear();
     groupY(particles);
-    if(!passed){
-    std::cout<<std::endl;
-        for(auto set: idSets ){
-
-            std::cout<<set.size()<<"-{  ";
-            for(auto id: set){
-                std::cout<<id<<" , ";
-            }
-            std::cout<<" }-";
-        }
-        passed = true;
-    }
+    
     draw_line(window);
     connected_points.clear();
     test = true;
@@ -229,174 +182,15 @@ void draw_line(sf::RenderWindow &window){
 }
 
 
-void groupY(std::vector<Particle> ps, float w0, float h0, float wf, float hf) {
-    //std::cout << "groupY called with " << ps.size() << " particles" << std::endl;
-
-    if (ps.size() < 2) {
-        std::cerr << "Not enough particles in groupY" << std::endl;
-        return;
-    }
-
+void groupY(std::vector<Particle> ps,float w0, float h0, float wf, float hf){
     std::sort(ps.begin(), ps.end(), CompareByY);
-
-    size_t mid = ps.size() / 2;
-    float yMed = (ps[mid - 1].y + ps[mid].y - ps[mid - 1].radius + ps[mid].radius) / 2;
-    //std::cout << "yMed calculated: " << yMed << std::endl;
-
+    float yMed = (ps[ps.size()/2 - 1].y + ps[ps.size()/2 ].y)/2;
     Coordenate c0(w0, yMed);
     Coordenate c1(wf, yMed);
-    std::vector<Particle> up;
-    std::vector<Particle> down;
-
-    if (c0.x == c1.x && c0.y == c1.y) {
-        up.push_back(ps[mid-1]);
-        up.push_back(ps[mid]);
-        down.push_back(ps[mid-1]);
-        down.push_back(ps[mid]);
-        std::cerr << "Skipping due to identical coordinates" << std::endl;
-        return;
-    }
-
     std::vector<Coordenate> pair {c0, c1};
     connected_points.push_back(pair);
-
-
-    for (auto& p : ps) {
-        if (p.y > yMed - p.radius) {
-            down.push_back(p);
-        } else {
-            up.push_back(p);
-        }
-    }
-
-   // std::cout << "Particles divided into " << up.size() << " up and " << down.size() << " down" << std::endl;
-
-    std::vector<int> ids;
-    if(up.size() == 0 || down.size() == 0 ){
-        up.push_back(ps[mid-1]);
-        up.push_back(ps[mid]);
-        down.push_back(ps[mid-1]);
-        down.push_back(ps[mid]);
-        std::cout<<" !!!! up : "<<up.size()<<" downt : "<<down.size()<<std::endl;
-        for (auto& p : up) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-        ids.clear();
-        for (auto& p : down) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-        return;
-        
-    }
-
-
-
-    if (up.size() > 3) {
-        groupX(up, w0, h0, wf, yMed);
-    } else {
-        for (auto& p : up) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-    }
-
-    if (down.size() > 3) {
-        groupX(down, w0, yMed, wf, hf);
-    } else {
-        ids.clear();
-        for (auto& p : down) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-    }
-    return;
 }
 
-void groupX(std::vector<Particle> ps, float w0, float h0, float wf, float hf) {
-   // std::cout << "groupX called with " << ps.size() << " particles" << std::endl;
-
-    if (ps.size() < 2) {
-        std::cerr << "Not enough particles in groupX" << std::endl;
-        return;
-    }
-
-    std::sort(ps.begin(), ps.end(), CompareByX);
-
-    size_t mid = ps.size() / 2;
-    float xMed = (ps[mid - 1].x + ps[mid].x - ps[mid - 1].radius + ps[mid].radius) / 2;
-    //std::cout << "xMed calculated: " << xMed << std::endl;
-
-    Coordenate c0(xMed, h0);
-    Coordenate c1(xMed, hf);
-    std::vector<Particle> left;
-    std::vector<Particle> right;
-
-    if (c0.x == c1.x && c0.y == c1.y) {
-        left.push_back(ps[mid-1]);
-        left.push_back(ps[mid]);
-        right.push_back(ps[mid-1]);
-        right.push_back(ps[mid]);
-        std::cerr << "Skipping due to identical coordinates" << std::endl;
-        return;
-    }
-
-    std::vector<Coordenate> pair {c0, c1};
-    connected_points.push_back(pair);
-
-
-    for (auto& p : ps) {
-        if (p.x < xMed - p.radius) {
-            left.push_back(p);
-        } else {
-            right.push_back(p);
-        }
-    }
-
-    //std::cout << "Particles divided into " << left.size() << " left and " << right.size() << " right" << std::endl;
-    std::vector<int> ids;
-
-    if(left.size() == 0 || right.size() == 0 ){
-        left.push_back(ps[mid-1]);
-        left.push_back(ps[mid]);
-        right.push_back(ps[mid-1]);
-        right.push_back(ps[mid]);
-        std::cout<<" !!!! left : "<<left.size()<<" right : "<<right.size()<<std::endl;
-        for (auto& p : left) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-        ids.clear();
-        for (auto& p : right) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-        return;
-    }
-
-
-    if (left.size() > 3) {
-        groupY(left, w0, h0, xMed, hf);
-    } else {
-        for (auto& p : left) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-    }
-
-    if (right.size() > 3) {
-        groupY(right, xMed, h0, wf, hf);
-    } else {
-        ids.clear();
-        for (auto& p : right) {
-            ids.push_back(p.id);
-        }
-        idSets.push_back(ids);
-    }
-
-    return;
-}
 
 
 
@@ -465,12 +259,6 @@ void add_ball(std::vector<Particle> &particles, std::vector<sf::CircleShape> &ci
 
     sf::Vector2i mouse = sf::Mouse::getPosition(window);
 
-    if(exist(particles, mouse.x, mouse.y)){
-        std::cout<<"CANNOT PUT IT THERE"<<std::endl;
-        return;
-    }
-
-
     if(orienation(gen) % 2 == 0){ //just creating an50% probability
             Particle particle(mouse.x,mouse.y,distr(gen), distr(gen), ball_size, c(gen), c(gen), c(gen), 255,num_particles); //we then create an Particle object with all this parameters
             particles.push_back(particle);
@@ -498,7 +286,7 @@ void check_collision(std::vector<Particle> &particles){
             auto& p2 = particles[k];
             if(p1.id == p2.id){continue;}
             if(is_touching(p1,p2)){
-           //std::cout<<i<<" - touching - "<<k<<std::endl;
+           // std::cout<<i<<" - touching"<<std::endl;
                 separate(p1,p2);
                 collide(p1,p2);
                 }

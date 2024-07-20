@@ -574,8 +574,3 @@ void check_borders(Particle &p){
                 p.y_velocity = -p.y_velocity ;
             }            
 }
-
-
-
-
-
